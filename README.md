@@ -579,7 +579,7 @@ If you choose MIT, add the corresponding `LICENSE` file to the repository.
 
 # 👨‍💻 Author
 
-**[Your Name]**
+**Ajmalharoon**
 
 Computer Science Engineering Student  
 Cybersecurity Enthusiast
