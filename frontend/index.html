@@ -1,0 +1,177 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>Cyron — Reconnaissance Console</title>
+<meta name="description" content="Cyron is a single console for active and passive reconnaissance against authorized targets, covering every recon phase in one report.">
+<link rel="icon" type="image/png" href="/favicon-32.png">
+<link rel="apple-touch-icon" href="/favicon-180.png">
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+<link href="https://fonts.googleapis.com/css2?family=Fraunces:ital,opsz,wght@0,9..144,400;0,9..144,500;0,9..144,600;1,9..144,500&family=JetBrains+Mono:wght@400;500;600&display=swap" rel="stylesheet">
+<link rel="stylesheet" href="/src/styles/theme.css">
+</head>
+<body>
+
+<header class="nav">
+  <a class="brand" href="#top" aria-label="Cyron home">
+    <span class="badge"><span class="ring"></span><img src="/cyron-mark.png" alt="" class="mark"></span>
+    <span class="wordmark">CYRON</span>
+  </a>
+  <nav class="nav-steps" aria-label="Sections">
+    <a href="#hero"><em>01</em>Target</a>
+    <a href="#phases"><em>02</em>Phases</a>
+    <a href="#console"><em>03</em>Map</a>
+    <a href="#report"><em>04</em>Report</a>
+  </nav>
+  <div class="nav-links">
+    <a href="https://github.com" target="_blank" rel="noopener">Docs</a>
+    <span class="dot">·</span>
+    <a href="#faq">FAQ</a>
+  </div>
+</header>
+
+<main id="top">
+
+  <section id="hero" class="hero">
+    <canvas id="particles" aria-hidden="true"></canvas>
+    <img src="/cyron-logo.png" alt="" class="hero-watermark" aria-hidden="true">
+    <div class="hero-inner">
+      <p class="eyebrow">// active + passive reconnaissance, one console</p>
+      <h1 class="display">
+        <span class="dim">Reconnaissance,</span><br>
+        <span class="bright">without the chaos.</span>
+      </h1>
+      <p class="lede">Cyron runs eighteen recon phases behind one target field — asset discovery through
+        cloud and repository exposure — and turns the results into a single industry-standard report.</p>
+
+      <form id="target-form" class="target-form" autocomplete="off">
+        <div class="mode-switch" role="group" aria-label="Recon mode">
+          <button type="button" class="mode-btn" data-mode="active" aria-pressed="true">Active<small>emit</small></button>
+          <button type="button" class="mode-btn" data-mode="passive" aria-pressed="false">Passive<small>listen</small></button>
+        </div>
+        <div class="field-row">
+          <input id="target-input" type="text" placeholder="example.com or 203.0.113.10" spellcheck="false" required>
+          <button type="submit" id="run-btn" class="btn-primary">Run active recon</button>
+        </div>
+        <label class="consent">
+          <input type="checkbox" id="consent-check">
+          I am authorized to test this target
+        </label>
+        <p id="form-msg" class="form-msg" role="alert" aria-live="polite"></p>
+      </form>
+
+      <div class="hero-foot">
+        <span>// target lock</span>
+        <span id="api-status">checking api…</span>
+        <span>cyron v0.1.0</span>
+      </div>
+    </div>
+  </section>
+
+  <section id="phases" class="section-intro">
+    <p class="index">01</p>
+    <h2 class="display sm"><span class="dim">Eighteen phases,</span> <span class="bright">one registry.</span></h2>
+    <p class="lede">Every tool is grouped into a recon phase and tagged active or passive. The phase list
+      below is read live from the Cyron API — add a tool to the registry and it appears here with nothing
+      else to change.</p>
+  </section>
+
+  <section id="console" class="console">
+    <aside class="phase-rail" aria-label="Recon phases">
+      <div class="rail-head">
+        <span id="phase-mode-label">Active phases</span>
+        <span id="phase-count" class="count"></span>
+      </div>
+      <div id="phase-list" class="phase-list"><p class="muted">Loading phases…</p></div>
+    </aside>
+
+    <div class="console-main">
+      <div class="tabs" role="tablist">
+        <button class="tab" role="tab" data-view="map3d" aria-selected="true">3D map</button>
+        <button class="tab" role="tab" data-view="map2d" aria-selected="false">Contact map</button>
+        <button class="tab" role="tab" data-view="log" aria-selected="false">Run log</button>
+      </div>
+
+      <div id="view-map3d" class="view">
+        <canvas id="map3d-canvas" aria-label="3D map of recon findings. Drag to rotate."></canvas>
+        <p class="hint">Drag to rotate. Violet nodes are Active phases, silver nodes are Passive. Larger
+          markers are higher severity.</p>
+      </div>
+
+      <div id="view-map2d" class="view" hidden>
+        <svg id="map2d" viewBox="0 0 760 620" role="img" aria-label="Contact map of recon findings"></svg>
+      </div>
+
+      <div id="view-log" class="view" hidden>
+        <pre id="run-log">No run yet. Enter a target above and start a scan.</pre>
+      </div>
+    </div>
+  </section>
+
+  <section id="report" class="report-section">
+    <p class="index">02</p>
+    <h2 class="display sm"><span class="dim">One report,</span> <span class="bright">built for the record.</span></h2>
+    <div id="report-body" class="report-body">
+      <p class="muted">Finish a scan to generate the report. It follows the PTES / NIST SP 800-115 / OWASP
+        WSTG structure: scope, methodology, risk ratings, detailed findings and a remediation roadmap.</p>
+    </div>
+  </section>
+
+  <section id="faq" class="faq">
+    <p class="index">03</p>
+    <h2 class="display sm"><span class="dim">Questions,</span> <span class="bright">answered.</span></h2>
+    <div class="faq-list">
+      <details class="faq-item">
+        <summary>What's the difference between active and passive?</summary>
+        <p>Active phases send traffic to the target — port scans, HTTP requests, directory brute-forcing.
+          Passive phases read public sources, archives, and your own cloud or repository accounts, and send
+          nothing to the target itself.</p>
+      </details>
+      <details class="faq-item">
+        <summary>Is anything exploited or changed on the target?</summary>
+        <p>No. Cyron only gathers information. It does not attempt exploitation, credential guessing, or
+          denial-of-service testing, in either mode.</p>
+      </details>
+      <details class="faq-item">
+        <summary>How is severity decided?</summary>
+        <p>Each tool module rates its own findings using simple, documented heuristics (open admin paths,
+          exposed secrets, deprecated TLS, and so on) or passes through a severity the tool itself reports,
+          like Nuclei's template severity. These are Cyron's automated judgement, not CVSS scores — an
+          analyst should confirm every finding before acting on it.</p>
+      </details>
+      <details class="faq-item">
+        <summary>Can I add my own tool?</summary>
+        <p>Yes. Subclass <code>ToolRunner</code> in <code>backend/app/recon/tools/</code>, register it on a
+          phase in <code>backend/app/recon/registry.py</code>, and it appears in the UI automatically — the
+          frontend reads the phase list from the API.</p>
+      </details>
+      <details class="faq-item">
+        <summary>Where does the report come from?</summary>
+        <p>The backend builds it from the findings stored for the scan, once the scan completes. It's
+          generated fresh each time you open the Report tab for a finished scan.</p>
+      </details>
+    </div>
+  </section>
+
+</main>
+
+<footer class="site-footer">
+  <div class="foot-row">
+    <img src="/cyron-logo-sm.png" alt="Cyron" class="foot-logo">
+    <p class="foot-note">Authorized use only. Run Cyron only against systems you own or have explicit
+      written permission to test.</p>
+  </div>
+  <div class="foot-row small">
+    <span>CYRON · RECON CONSOLE</span>
+    <span id="foot-mode">MODE: ACTIVE</span>
+    <span>v0.1.0</span>
+  </div>
+</footer>
+
+<script src="/env.js"></script>
+<script src="https://cdnjs.cloudflare.com/ajax/libs/three.js/r128/three.min.js"></script>
+<script type="module" src="/src/main.js"></script>
+</body>
+</html>

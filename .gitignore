@@ -1,0 +1,35 @@
+# Python
+__pycache__/
+*.pyc
+.venv/
+venv/
+*.egg-info/
+.pytest_cache/
+
+# Node
+node_modules/
+dist/
+.vite/
+
+# Env / secrets
+.env
+*.pem
+*.key
+.env.*
+!.env.example
+*.zip
+
+# Database
+*.db
+*.sqlite3
+pgdata/
+
+# Scan output / logs
+backend/scan-output/
+*.log
+
+# OS / editor
+.DS_Store
+.vscode/
+.idea/
+

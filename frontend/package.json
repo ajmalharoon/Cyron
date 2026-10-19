@@ -1,0 +1,15 @@
+{
+  "name": "cyron-frontend",
+  "version": "0.1.0",
+  "private": true,
+  "type": "module",
+  "description": "Cyron web console — static frontend, no build step required.",
+  "scripts": {
+    "dev": "npx --yes serve -l 5173 .",
+    "lint": "npx --yes eslint src --ext .js"
+  },
+  "devDependencies": {
+    "eslint": "^9.9.0",
+    "serve": "^14.2.3"
+  }
+}

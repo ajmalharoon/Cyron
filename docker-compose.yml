@@ -1,0 +1,316 @@
+# Cyron — single compose file for the whole stack: Postgres, the backend
+# API, the frontend, and every recon tool as its own container.
+#
+# Why one tool per container: each tool brings its own, often conflicting
+# toolchain (Go, Python, Ruby, Rust, a prebuilt release binary) and its own
+# dependency versions. Building them together into one backend image meant
+# either a bloated image or constant version collisions. Each tool
+# container instead runs a tiny, dependency-free HTTP shim
+# (tool-services/_shim/shim.py) that executes whatever argv the backend
+# sends it and returns stdout/stderr/returncode — see
+# backend/app/recon/base.py's module docstring for the full contract, and
+# docs/architecture.md for the reasoning. None of these containers publish
+# a port to the host; only the backend, on the same compose network, can
+# reach them.
+#
+# First build is slow — 27 tool images, several compiling Go/Rust from
+# source. `docker compose build` once, then `docker compose up` is fast
+# after that.
+services:
+  db:
+    image: postgres:16-alpine
+    restart: unless-stopped
+    environment:
+      POSTGRES_USER: ${POSTGRES_USER:-cyron}
+      POSTGRES_PASSWORD: ${POSTGRES_PASSWORD:-change_me_locally}
+      POSTGRES_DB: ${POSTGRES_DB:-cyron}
+    volumes:
+      - pgdata:/var/lib/postgresql/data
+      - ./db/schema.sql:/docker-entrypoint-initdb.d/01-schema.sql:ro
+    ports:
+      - "5432:5432"
+    healthcheck:
+      test: ["CMD-SHELL", "pg_isready -U ${POSTGRES_USER:-cyron}"]
+      interval: 5s
+      timeout: 5s
+      retries: 10
+
+  backend:
+    build: ./backend
+    restart: unless-stopped
+    env_file: .env
+    depends_on:
+      db:
+        condition: service_healthy
+    ports:
+      - "8000:8000"
+    volumes:
+      - scan-output:/data/scan-output
+    # Deliberately no depends_on for the 27 tool services below: the
+    # backend handles a not-yet-ready (or never built) tool container as
+    # one failed tool run, not a crash — see ToolRunner.run()'s
+    # httpx.ConnectError handling. Waiting on 27 healthchecks before the
+    # API comes up would make every restart needlessly slow.
+
+  frontend:
+    build: ./frontend
+    restart: unless-stopped
+    env_file: .env   # supplies CYRON_API_KEY, so the UI can authenticate against the backend
+    environment:
+      # Overrides whatever's in .env: this is a browser-facing URL, so it
+      # must be reachable from the operator's machine, not the Docker
+      # network's internal "backend" hostname.
+      CYRON_API_BASE: http://localhost:8000
+    depends_on:
+      - backend
+    ports:
+      - "5173:80"
+
+  # The one tool service that isn't built from tool-services/ — OWASP ZAP
+  # already publishes an excellent official image with its own daemon API,
+  # which zap.py calls directly (http://zap:8080). No shim needed here.
+  zap:
+    image: zaproxy/zap-stable:2.16.1
+    restart: unless-stopped
+    command: zap.sh -daemon -host 0.0.0.0 -port 8080 -config api.disablekey=true
+    # api.disablekey=true is fine on an internal-only compose network with
+    # no published port; set a real ZAP API key and pass it through zap.py
+    # instead if you ever expose this service more broadly.
+
+  # ---------------------------------------------------------------------
+  # Recon tool containers — one per binary, built from tool-services/.
+  # Service name = the ToolRunner.binary the backend looks up by hostname.
+  # ---------------------------------------------------------------------
+  amass:
+    build:
+      context: ./tool-services
+      dockerfile: amass/Dockerfile
+    restart: unless-stopped
+    # no ports: — reachable only from other containers on this compose network,
+    # never published to the host.
+
+  subfinder:
+    build:
+      context: ./tool-services
+      dockerfile: subfinder/Dockerfile
+    restart: unless-stopped
+    # no ports: — reachable only from other containers on this compose network,
+    # never published to the host.
+
+  dnsx:
+    build:
+      context: ./tool-services
+      dockerfile: dnsx/Dockerfile
+    restart: unless-stopped
+    # no ports: — reachable only from other containers on this compose network,
+    # never published to the host.
+
+  shuffledns:
+    build:
+      context: ./tool-services
+      dockerfile: shuffledns/Dockerfile
+    restart: unless-stopped
+    # no ports: — reachable only from other containers on this compose network,
+    # never published to the host.
+
+  dnsrecon:
+    build:
+      context: ./tool-services
+      dockerfile: dnsrecon/Dockerfile
+    restart: unless-stopped
+    # no ports: — reachable only from other containers on this compose network,
+    # never published to the host.
+
+  nmap:
+    build:
+      context: ./tool-services
+      dockerfile: nmap/Dockerfile
+    restart: unless-stopped
+    # no ports: — reachable only from other containers on this compose network,
+    # never published to the host.
+
+  naabu:
+    build:
+      context: ./tool-services
+      dockerfile: naabu/Dockerfile
+    restart: unless-stopped
+    # NET_ADMIN/NET_RAW are needed for naabu's SYN scan mode; it falls back to a slower connect scan without them.
+    cap_add:
+      - NET_ADMIN
+      - NET_RAW
+    # no ports: — reachable only from other containers on this compose network,
+    # never published to the host.
+
+  masscan:
+    build:
+      context: ./tool-services
+      dockerfile: masscan/Dockerfile
+    restart: unless-stopped
+    # NET_ADMIN/NET_RAW are needed for masscan's raw-socket scanning.
+    cap_add:
+      - NET_ADMIN
+      - NET_RAW
+    # no ports: — reachable only from other containers on this compose network,
+    # never published to the host.
+
+  httpx:
+    build:
+      context: ./tool-services
+      dockerfile: httpx/Dockerfile
+    restart: unless-stopped
+    # no ports: — reachable only from other containers on this compose network,
+    # never published to the host.
+
+  gau:
+    build:
+      context: ./tool-services
+      dockerfile: gau/Dockerfile
+    restart: unless-stopped
+    # no ports: — reachable only from other containers on this compose network,
+    # never published to the host.
+
+  waybackurls:
+    build:
+      context: ./tool-services
+      dockerfile: waybackurls/Dockerfile
+    restart: unless-stopped
+    # no ports: — reachable only from other containers on this compose network,
+    # never published to the host.
+
+  ffuf:
+    build:
+      context: ./tool-services
+      dockerfile: ffuf/Dockerfile
+    restart: unless-stopped
+    # no ports: — reachable only from other containers on this compose network,
+    # never published to the host.
+
+  feroxbuster:
+    build:
+      context: ./tool-services
+      dockerfile: feroxbuster/Dockerfile
+    restart: unless-stopped
+    # no ports: — reachable only from other containers on this compose network,
+    # never published to the host.
+
+  gobuster:
+    build:
+      context: ./tool-services
+      dockerfile: gobuster/Dockerfile
+    restart: unless-stopped
+    # no ports: — reachable only from other containers on this compose network,
+    # never published to the host.
+
+  whatweb:
+    build:
+      context: ./tool-services
+      dockerfile: whatweb/Dockerfile
+    restart: unless-stopped
+    # no ports: — reachable only from other containers on this compose network,
+    # never published to the host.
+
+  linkfinder:
+    build:
+      context: ./tool-services
+      dockerfile: linkfinder/Dockerfile
+    restart: unless-stopped
+    # no ports: — reachable only from other containers on this compose network,
+    # never published to the host.
+
+  secretfinder:
+    build:
+      context: ./tool-services
+      dockerfile: secretfinder/Dockerfile
+    restart: unless-stopped
+    # no ports: — reachable only from other containers on this compose network,
+    # never published to the host.
+
+  gitleaks:
+    build:
+      context: ./tool-services
+      dockerfile: gitleaks/Dockerfile
+    restart: unless-stopped
+    # Mount a repo at /work and point GitleaksRunner(repo_path=...) at it to scan something other than the container's own filesystem.
+    # no ports: — reachable only from other containers on this compose network,
+    # never published to the host.
+
+  katana:
+    build:
+      context: ./tool-services
+      dockerfile: katana/Dockerfile
+    restart: unless-stopped
+    # no ports: — reachable only from other containers on this compose network,
+    # never published to the host.
+
+  kr:
+    build:
+      context: ./tool-services
+      dockerfile: kiterunner/Dockerfile
+    restart: unless-stopped
+    # Service is named "kr" (not "kiterunner") to match KiterunnerRunner.binary — see tool-services/kiterunner/Dockerfile.
+    # no ports: — reachable only from other containers on this compose network,
+    # never published to the host.
+
+  nuclei:
+    build:
+      context: ./tool-services
+      dockerfile: nuclei/Dockerfile
+    restart: unless-stopped
+    # Run `docker compose exec nuclei nuclei -update-templates` once after first build; templates aren't bundled.
+    # no ports: — reachable only from other containers on this compose network,
+    # never published to the host.
+
+
+  kube-hunter:
+    build:
+      context: ./tool-services
+      dockerfile: kube-hunter/Dockerfile
+    restart: unless-stopped
+    # Needs network access to the cluster it's pointed at; defaults to this service's own container network.
+    # no ports: — reachable only from other containers on this compose network,
+    # never published to the host.
+
+  kube-bench:
+    build:
+      context: ./tool-services
+      dockerfile: kube-bench/Dockerfile
+    restart: unless-stopped
+    # Meant to run ON a cluster node to inspect its config; results from inside this container mostly reflect this container, not a real node.
+    # See the project's own docs before trusting this in production.
+    # no ports: — reachable only from other containers on this compose network,
+    # never published to the host.
+
+  trufflehog:
+    build:
+      context: ./tool-services
+      dockerfile: trufflehog/Dockerfile
+    restart: unless-stopped
+    # no ports: — reachable only from other containers on this compose network,
+    # never published to the host.
+
+  prowler:
+    build:
+      context: ./tool-services
+      dockerfile: prowler/Dockerfile
+    restart: unless-stopped
+    # Needs AWS credentials.
+    # Uncomment the volume mount below and point it at a real ~/.aws, or set AWS_* env vars in .env and uncomment the env_file line.
+    # volumes:
+    #   - ~/.aws:/root/.aws:ro
+    # no ports: — reachable only from other containers on this compose network,
+    # never published to the host.
+
+  scout:
+    build:
+      context: ./tool-services
+      dockerfile: scoutsuite/Dockerfile
+    restart: unless-stopped
+    # Needs cloud credentials for whichever provider you target (AWS/Azure/GCP).
+    # Uncomment the matching volume mount below.
+    # volumes:
+    #   - ~/.aws:/root/.aws:ro
+    # no ports: — reachable only from other containers on this compose network,
+    # never published to the host.
+volumes:
+  pgdata:
+  scan-output:
